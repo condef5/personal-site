@@ -1,0 +1,13 @@
+---
+title: Frank Condezo
+description: FullStack Software Engineer and Addicted to manga
+domain: https://banzai.dev
+language: en
+social:
+  twitter: condef5
+  github: condef5
+  linkedin: condef5
+  dev: condef5
+navigation:
+  - name: Bio
+    path: /bio/

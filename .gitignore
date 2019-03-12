@@ -1,0 +1,8 @@
+/node_modules
+/logs
+/.vscode
+/public
+/.cache
+/.tmp
+*.log
+/.netlify
