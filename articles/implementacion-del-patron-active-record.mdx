@@ -1,0 +1,296 @@
+---
+title: Cómo implementar el patrón active record en modelos a partir de archivos JSON
+date: 2019-03-23T14:36:26.741Z
+description: Active record es un patrón de diseño que define una forma de acceder a los datos de una base de datos relacional y convertir las filas de una tabla en objetos.
+lang: es
+published: true
+tags: Begginner, Ruby
+---
+
+[Active Record fue descrito por Martin Fowler](https://www.martinfowler.com/eaaCatalog/activeRecord.html) en su libro _Patterns of Enterprise Application Architecture_.
+
+Un objeto transporta tanto datos como comportamiento. Gran parte de estos datos son persistentes y deben almacenarse en una base de datos. Active Record utiliza el enfoque más obvio, poniendo la lógica de acceso a los datos en el objeto de dominio.
+
+En otras palabras, los objetos debe incluir funciones como por ejemplo insertar (CREATE), leer(READ), actualizar (UPDATE), eliminar (DELETE) y propiedades que correspondan de cierta manera directamente a las columnas de la base de datos asociada.
+
+Este patrón de persistencia es quizás uno de los más habituales y es usado por frameworks como Rails([active record](https://guides.rubyonrails.org/active_record_basics.html)) o Laravel([eloquent](https://laravel.com/docs/master/eloquent)).
+
+En este post no vamos a usar una base de datos real, si no archivos JSON para mostrarte lo increíble que es el patron `Active Record` y para ello usaremos como lenguage de programación al gran y confiable `ruby`.
+
+## Iniciar el proyecto
+
+Los archivos iniciales que vamos a necesitar para el proyecto son:
+
+```file-tree
+[
+  { "type": "file", "name": "Movie.rb" },
+  { "type": "file", "name": "movies.json" },
+  { "type": "file", "name": "main.rb" }
+]
+```
+
+Primero vamos a crear un archivo ruby `Movie.rb` y un archivo json `movies.json` en donde almacenaremos nuestras películas(este archivo inicialmente solo tiene un `[]` como contenido).
+
+En `Movie.rb` creamos una clase(que se comportará como un modelo), los atributos propios de `Movie` y unos cuantos métodos que nos permitiran acceder a nuestro archivo `movies.json`. Tambien importamos la librería `json` para poder parsear archivos `json` en `hash` y guardar jsons a partir de hashs :
+
+```ruby
+require 'json'
+
+class Movie
+  @@file = 'movies.json'
+
+  attr_accessor :id, :name, :description, :date, :genders
+
+  def initialize(id = "", name = "", description = "", date = "", genders = [] )
+    @id = id
+    @name = name
+    @description = description
+    @date = date
+    @genders = genders
+  end
+
+  def self.read
+    JSON.parse(File.read(@@file))
+  end
+
+  def self.save_data_to_json(data)
+    File.write(@@file, data)
+  end
+end
+```
+
+> Nota: Todos los métodos que comienzen con la palabra `self` son métodos estáticos
+
+Ahora en nuestra clase `Movie` vamos a crear un metodo que guarde los atributos del objeto(CREATE)
+
+```ruby
+  def save()
+    movies = Movie.read_json
+    movies << ({
+      name: @name,
+      description: @description,
+      date: @date,
+      genders: @genders,
+      id: (Time.now.to_f.round(2) * 100).to_i # generate fake id
+    })
+    Movie.save_data_to_json(movies.to_json)
+  end
+```
+
+> Nota: Cuando queremos usar un método estático dentro de un metodo normal, debemos hacer referencia al metodo con el nombre de la clase `Movie` y no con `self`
+
+Ahora necesitamos probar nuestro modelo, para ello creamos un archivo `main.rb` en la misma carpeta:
+
+```ruby
+require_relative 'Movie'
+
+movie = Movie.new
+movie.name = "La chica que saltaba a traves del tiempo"
+movie.description = "Una adolescente intenta usar a su favor su nueva capacidad para viajar en el tiempo"
+movie.date = "09/12/2006"
+movie.genders = ["drama", "seinen", "slice of life"]
+movie.save()  # save object in movies.json
+
+movie = Movie.new
+movie.name = "El origen"
+movie.description = "Esta película es una version corta de la película Paprika"
+movie.date = "28/07/2010"
+movie.genders = ["drama", "suspence", "acción"]
+movie.save()
+```
+
+Si revisamos nuestro archivo `movies.json` debemos ver los objecto guardados.
+
+Ahora en `Movie.rb` agregamos un método estático llamado `all`(READ) que nos retornará un array de objetos del tipo `Movie`:
+
+```ruby
+  def self.all
+    json_movies = self.read_json
+    json_movies.map do |movie|
+      self.new(
+        movie["id"],
+        movie["name"],
+        movie["description"],
+        movie["date"],
+        movie["genders"]
+      )
+    end
+  end
+```
+
+Usamos un metodo estático para poder llamarlo directamente desde la clase `Movie` y no crear un objecto de clase cada vez que necesitamos el metodo `all`
+
+Ahora probamos el metodo `all` en `main.rb` para que nos liste todas las películas que han sido guardadas:
+
+```ruby
+require_relative 'Movie'
+
+movies = Movie.all
+puts movies.inspect
+```
+
+Ahora vamos a crear un metodo estático que nos devuelva una película por un identificador unico(`id`) de nuestro archivo `movies.json`
+
+```ruby
+  def self.find(id)
+    movies = self.read_json
+    movie = movies.detect{ |movie| movie["id"] == id}
+    return nil if movie.nil?
+    self.new(
+      movie["id"],
+      movie["name"],
+      movie["description"],
+      movie["date"],
+      movie["genders"]
+    )
+  end
+```
+
+Ahora probamos el metodo `find` en `main.rb`, usamos un id de cualquier película que ha sido guardada:
+
+```ruby
+require_relative 'Movie'
+
+movie = Movie.find(155395102921)
+puts movie.name
+puts movie.description
+```
+
+Ahora procedemos a crear un metodo que nos permita actualizar a los registros guardados, para esto solo modificaremos nuestro metodo `save`:
+
+```ruby
+  def save
+    movies = Movie.read_json
+    if @id == ""
+      movies << ({
+        name: @name,
+        description: @description,
+        date: @date,
+        genders: @genders,
+        id: (Time.now.to_f.round(2) * 100).to_i # generate fake unique id
+      })
+    else
+      movies = movies.map do |movie|
+        movie["id"] == @id ?
+          {
+            name: @name,
+            description: @description,
+            date: @date,
+            genders: @genders,
+            id: @id
+          } : movie
+      end
+    end
+    Movie.save_data_to_json(movies.to_json)
+  end
+```
+
+Ahora probamos la actualizacion de un registro, primero usamos un id de cualquier película para encontrar a la película y después actualizamos sus atributos:
+
+```ruby
+require_relative 'Movie'
+
+movie = Movie.find(155395102921)
+movie.name = "The best title"
+movie.description = "Description update"
+movie.save() # update movie
+```
+
+Por último vamos a implementar un metodo que nos permita eliminar(DELETE) registros:
+
+```ruby
+  def self.delete(id)
+    movies = self.read_json
+    movies = movies.select{ |movie| movie["id"] != id}
+    Movie.save_data_to_json(movies.to_json)
+  end
+```
+
+Ahora probamos el metodo `delete` en `main.rb`, usamos un id de cualquier película que ha sido guardada:
+
+```ruby
+require_relative 'Movie'
+
+Movie.delete(155395357010)
+
+puts Movie.all.inspect
+```
+
+Ahora somos capaces de eliminar cualquier película de nuestros registros.
+
+Antes de terminar vamos a refactorizar todo nuestro modelo `Movie` aplicando el principio `DRY`:
+
+```rb
+require 'json'
+
+class Movie
+  @@file = 'movies.json'
+
+  attr_accessor :id, :name, :description, :date, :genders
+
+  def initialize(id = "", name = "", description = "", date = "", genders = [] )
+    @id = id
+    @name = name
+    @description = description
+    @date = date
+    @genders = genders
+  end
+
+  def self.read_json
+    JSON.parse(File.read(@@file))
+  end
+
+  def self.save_data_to_json(data)
+    File.write(@@file, data)
+  end
+
+  def save
+    movies = Movie.read_json
+    if @id == ""
+      @id = (Time.now.to_f.round(2) * 100).to_i # generate fake id
+      movies << Movie.to_hash(self)
+    else
+      movies = movies.map do |movie|
+        movie["id"] == @id ? Movie.to_hash(self) : movie
+      end
+    end
+    Movie.save_data_to_json(movies.to_json)
+  end
+
+  def self.all
+    json_movies = self.read_json
+    json_movies.map do |movie|
+      self.to_class(movie)
+    end
+  end
+
+  def self.find(id)
+    movies = self.read_json
+    movie = movies.detect{ |movie| movie["id"] == id}
+    return nil if movie.nil?
+    self.to_class(movie)
+  end
+
+  def self.delete(id)
+    movies = self.read_json
+    movies = movies.select{ |movie| movie["id"] != id}
+    Movie.save_data_to_json(movies.to_json)
+  end
+
+  def self.to_class(hash = {})
+    self.new(hash["id"], hash["name"], hash["description"], hash["date"], hash["genders"])
+  end
+
+  def self.to_hash(movie)
+    { id: movie.id, name: movie.name, description: movie.description, date: movie.date, genders: movie.genders}
+  end
+
+end
+```
+
+Como vemos agregamos dos métodos staticos `to_class` y `to_hash` porque ambas funcionalidades se repetian mas de unas vez en nuestro código, ahora tenemos un código reducido y mucho mas simple de leer.
+
+## Palabras finales
+
+Existen varios patrones para la persistencia de datos, pero active record destaca por su facilidad de uso.
+Al usar active record nos aseguramos que nuestra aplicación quede completamente aislada del trabajo con SQL o como en este caso a la manipulación directa de los archivos de nuestra data.
