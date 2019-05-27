@@ -1,0 +1,217 @@
+---
+title: GraphQL with ruby
+date: 2019-04-12T04:23:51.855Z
+description: Crea tu primer servidor GraphQL con ruby.
+lang: es
+published: true
+tags: Begginner, Spanish, Ruby, GraphQL
+---
+
+GraphQL fue creado por Facebook en el 2012 para uso interno en sus proyectos, que pasó a ser de código abierto en el 2015 y ahora es mantenido por una gran comunidad de empresas e individuos de todo el mundo.
+
+Es importante decir que GraphQL no es ni un framework ni una librería, es una especificación(o también se podria decir que un estándar ʕ·ᴥ·ʔ) y que tenemos distintas librerías de código que lo implementan para distintos lenguajes de programación.
+
+Ahora si vayamos con la definición ʕ ·ᴥʔ:
+
+> [GraphQL](https://www.graphql.org/) es un lenguaje de consultas para API. GraphQL le da a los clientes de la API el poder de pedir exactamente lo que necesitan y nada más, facilita la evolución de las API a lo largo del tiempo y habilita poderosas herramientas para desarrolladores.
+
+Así que hoy vamos a crear un servidor GraphQL usando `solo ruby` en solo 5 sencillos pasos.
+
+## Step 1: Inicialización del proyecto
+
+Creamos una carpeta en donde vamos a trabajar:
+
+```sh
+mkdir graphql-server
+cd graphql-server
+```
+
+Inicializamos un nuevo proyecto con ruby a través del gestor de paquetes de ruby `bundler`:
+
+```
+bundle init
+```
+
+## Step 2: Instalación de dependencias
+
+A continuación, instalamos las dependencias principales que son necesarias para responder a las solicitudes de GraphQL:
+
+- [rack](https://rubygems.org/gems/rack/): Gema que define una interfaz muy simple para construir servidores web en Ruby.
+- [graphql](https://rubygems.org/gems/graphql): Gema para crear un esquema y ejecutar consultas en dicho esquema.
+- [graphql_graphql_playground](https://github.com/betaflag/graphql-playground-ruby): Gema que nos proporciona un editor gráfico para escribir consultas en GraphQL.
+
+Agregamos estas gemas a nuestro Gemfile:
+
+```sh
+source "https://rubygems.org"
+
+gem "rack"
+gem "graphql"
+gem "graphql_playground"
+
+```
+
+Y las instalamos corriendo este comando:
+
+```sh
+bundle install
+```
+
+En el siguiente paso, usaremos estas dependencias para crear un servidor que procesa y responde a las solicitudes entrantes de GraphQL.
+
+## Step 3: Crear el servidor
+
+Creamos un archivo `server.rb` y agregamos lo siguiente:
+
+```ruby
+require 'rack'
+
+class GraphQLServer
+  def initialize(schema:, context: {})
+    @schema = schema
+    @context = context
+  end
+
+  def call(env)
+    request = Rack::Request.new(env)
+    payload = if request.get?
+      request.params
+    elsif request.post?
+      body = request.body.read
+      JSON.parse(body)
+    end
+
+    response = @schema.execute(
+      payload['query'],
+      variables: payload['variables'],
+      operation_name: payload['operationName'],
+      context: @context,
+    ).to_json
+    [200, {'Content-Type' => 'application/json', 'Content-Length' => response.bytesize.to_s}, [response]]
+
+  rescue InvalidRequestType
+    # Method Not Allowed
+    [405, {"Content-Type" => "text/html"}, ["GraphQL Server supports only GET/POST requests"]]
+
+  rescue PostBodyMissing
+    # Bad Request
+    [400, {"Content-Type" => "text/html"}, ["POST body missing"]]
+  end
+end
+```
+
+Ahora creamos el archivo `config.ru`
+
+```ruby
+require 'graphql'
+require "graphql_playground"
+require_relative 'server'
+
+# definimos los types
+type_def = <<-GRAPHQL
+  type Query {
+    hello: String
+    todos: [Todo!]!
+  }
+
+  type Todo {
+    id: Int!
+    name: String!
+  }
+GRAPHQL
+
+
+class Todo
+  attr_accessor :id, :name
+
+  def initialize(id, name)
+    @id = id
+    @name = name
+  end
+end
+
+# creamos un array con objectos de la clase `Todo` para consultarlos desde el cliente
+todos = [
+  Todo.new(1, "Clean the house"),
+  Todo.new(2, "Go to the store")
+]
+
+# creamos nuestros resolvers
+resolver = {
+  "Query" => {
+    "hello" => Proc.new { "world" },
+    "todos" => Proc.new { todos }
+  }
+}
+
+# definimos una ruta para acceder al playground(editor gráfico)
+map '/playground' do
+  use GraphQLPlayground, endpoint: '/'
+end
+
+# creamos un schema
+schema = GraphQL::Schema.from_definition(
+  type_def,
+  default_resolve: resolver
+)
+
+# corremos el server con el schema ya creado
+run GraphQLServer.new(schema: schema)
+
+```
+
+# Step 4: Start the server
+
+Corremos el server usando este comando:
+
+```sh
+rackup config.ru
+```
+
+Ahora que nuestro server se está ejecutando, abrimos el editor graphql en [http://localhost:9292/playground](http://localhost:9292/playground).
+
+# Step 5: Corre tu primera query
+
+En este punto, podrás comenzar a enviar consultas al servidor GraphQL utilizando `GraphQL Playground`, que se divide en algunas partes:
+
+- La petición (en la izquierda)
+- La respuesta (a la derecha)
+- La documentación (disponible usando el botón "SCHEMA" en el extremo derecho)
+
+Probamos nuestra primera `query` en nuestro editor `playground`:
+
+```gql
+{
+  hello
+}
+```
+
+Y obtenemos el clásico `world`
+
+![]()
+!["Playground para escribir nuestras consultas GraphQL"](/static/articles/hello-graphql.png 'Playground para escribir nuestras consultas GraphQL')
+
+Ahora obtenemos los `todos`, ingresando la siguiente `query` en lado izquierdo de la ventana:
+
+```gql
+{
+  todos {
+    id
+    name
+  }
+}
+```
+
+Y obtenemos una lista de `todos` que definimos en nuestro server.
+
+![]()
+!["Lista de todos"](/static/articles/playground.png 'Lista de todos')
+
+# Próximos pasos
+
+Está aplicación es una implementacion super básica de un servidor graphql con ruby y un excelente punto de partida para sumergirte en este curioso mundo de graphQL, te dejo algunos enlaces que serán un gran paso para construir servidores graphql con rails:
+
+- [The Fullstack Tutorial for GraphQL with ruby](https://www.howtographql.com/graphql-ruby/0-introduction/)
+- [Designing a GraphQL API](https://github.com/Shopify/graphql-design-tutorial/blob/master/TUTORIAL.md)
+- [RailsConf 2018: The GraphQL Way](https://www.youtube.com/watch?v=QHoddukdqf0)
+- [Awesome list of GraphQL](https://github.com/chentsulin/awesome-graphql)
