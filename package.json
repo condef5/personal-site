@@ -1,34 +1,24 @@
 {
-  "name": "personal-site",
-  "description": "Frank Condezo's personal website",
-  "scripts": {
-    "dev": "watch \"yarn build\" articles pages slides",
-    "build:dev": "node ../contentz/src",
-    "build": "contentz build",
-    "social": "contentz social",
-    "start": "serve public -p 3000"
-  },
-  "keywords": [
-    "contentz",
-    "blog",
-    "personal-website",
-    "personal-site"
-  ],
-  "author": {
-    "name": "Frank Condezo",
-    "email": "davis.con.fab@gmail.com",
-    "url": "https://frankcondezo.com/"
-  },
-  "license": "MIT",
+  "name": "blog",
   "version": "1.0.0",
   "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "watch": "watch \"yarn build\" articles slides pages",
+    "dev": "concurrently 'yarn watch' 'yarn start'",
+    "build": "contentz build",
+    "social": "contentz social",
+    "write": "contentz write",
+    "start": "serve public -p 3000"
+  },
   "dependencies": {
-    "contentz": "3.13.1"
+    "@contentz/build": "^2.5.5",
+    "@contentz/social": "3.14.3",
+    "@contentz/write": "3.13.2",
+    "contentz": "^3.14.1"
   },
   "devDependencies": {
-    "husky": "2.2.0",
-    "lint-staged": "8.1.6",
-    "serve": "11.0.0",
-    "watch": "1.0.2"
+    "serve": "^11.3.0",
+    "watch": "^1.0.2"
   }
 }
