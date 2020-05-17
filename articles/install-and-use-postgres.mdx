@@ -1,0 +1,113 @@
+---
+title: Postgres for beginners
+description: Install and setup PostgreSQL for first time.
+date: 2020-05-17T21:15:21.622Z
+lang: en
+tags: Setup, Postgresql, Psql
+published: true
+---
+
+## Installing PostgreSQL
+
+#### Ubuntu
+```sh
+sudo apt-get update
+sudo apt install postgresql postgresql-contrib
+```
+
+#### Debian
+```sh
+sudo apt-get update
+sudo apt-get install postgresql-9.4 postgresql-client-9.4
+```
+
+#### MacOs
+```sh
+brew install postgresql
+```
+
+Note: You can also use [homebrew](https://docs.brew.sh/Homebrew-on-Linux) in linux.
+
+## Setup roles
+
+By default, Postgres uses a concept called "roles" to aid in authentication and authorization. So we need to create a role with
+the same usernameof your machine:
+
+To know what username you have, you need to run this command:
+```sh
+whoami
+```
+
+Now, you need to access to console of postgresql:
+```sh
+sudo -u postgres psql
+```
+
+Then it's necessary create a role, and database with the same username and give permissions:
+```sh
+postgres=# create user my_user with encrypted password 'my_pass';
+postgres=# create database my_user;
+postgres=# grant all privileges on database my_user to my_user;
+postgres=# alter user my_user with superuser;
+```
+Note: if you username has spaces, you need to use `quotation marks` like this: `"Tony Ojeda"`
+
+So it's evething is fine, you could access to the postgres console with this:
+```sh
+psql
+```
+
+## Use postgres
+
+Postgres has some wrappers, two of them are `createdb` and `dropdb`.
+
+With `createdb` you can create a database without necesarry to access to `psql` console,
+```sh
+createdb gatito_db
+```
+
+The same thing happens with `dropdb`, it's allow to delete a database.
+```sh
+dropdb gatito_db
+```
+
+Here are a few commands that can help you day to day:
+
+| Command    | Description |
+| -----------| ------------|
+`\\l`        | List databases
+`\\dt`       | List tables
+`\\d`        | List available tables, views, and sequences in current database.
+`\\c`        | Connect to a different database. Follow this by the database name.
+`\\du`       | List available roles
+`\\password` | Change the password for the username that follows.
+`\\conninfo` | Get information about the current database and connection.
+`\\q`        | Quit the psql program and exit to the Linux prompt.
+`\\?:`       | Get a full list of psql commands
+`\\h`        | Get help on SQL commands
+
+Note: I love the `\q` command :3
+
+## Common problems with postgres
+
+There are a some known issues with postgres. In my case, I have dealt with one in specific:
+
+> Error: psql: could not connect to server: Connection refused Is the server running on host "127.0.0.1" and accepting TCP/IP connections on port 5432?
+
+You need to list the ports related to postgres:
+```sh
+sudo netstat -plunt | grep postgres
+```
+
+If you see the port the postgres is different to `5.4.3.2`, you need to edit `postgresql.conf` file:
+```sh
+sudo nano /usr/local/var/postgres/postgresql.conf
+```
+And change the `port` to `5.4.3.2`
+
+You can see more errors [here](https://www.revsys.com/writings/postgresql/errors.html#cannot-connect-local).
+
+
+## Conclusion
+
+You should now have a postgres installed in your computer, if you have a issue with postgres you cand send a issue to this repo :)
