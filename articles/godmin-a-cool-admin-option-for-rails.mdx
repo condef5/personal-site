@@ -1,0 +1,227 @@
+---
+title: Godmin a cool admin option for rails
+date: 2020-11-28T17:25:52.721Z
+description: Godmin is an admin framework for Rails 5+, this framework is by far the most customizable that exists.
+lang: en
+published: true
+tags: Ruby on rails, admins, dsl
+---
+
+When we develop applications sometimes we need to handle the administration of some common resources, doing some repetitive tasks like paginations, filtering, batch actions, and others.
+
+Create this for own hand its hard most part of the time, so we can use some admin gems or engines, there is a lot of these in the rails ecosystem, like administrate, rails-admin, etc.
+
+But today I'll show you an interesting engine called Godmin,  I discover godmin when I was working at able.co, I like the way this tool works and makes things easier.
+
+> Godmin in the best option vs others admins/engines, because it is pretty lightweight, it does not have a DSL, you can override pretty much anything.  On the other hand, rails_admin (and several others) are really bloated with stuff you may not actually need and that gets tricky to override/extend.
+
+This was the answer from my old tech lead and the first person who built the setup of the project in which I worked for a year and a half.
+
+So given that context, we are going to set up a godmin as an engine in a new Rails 6 project, so lets started :)
+
+### 1. Create a new project
+
+You need to create a new rails project:
+
+```
+rails new super-admin  -T -d postgresql
+```
+The flag `-T` is to skip the installation of `minitest` and `-d postgresql` because I like to use PostgreSQL as my default database.
+
+
+### 2. Create some resources
+
+Let's create users, categories, and articles crud with scaffold
+
+```
+rails g scaffold Author first_name last_date birthday:date
+rails g scaffold Genre name
+rails g scaffold Book name description author:references genre:references
+```
+
+Then we need to create the database and run the migrations:
+
+```
+rails db:create
+rails db:migrate
+```
+
+Now, we have a user, category, and articles crud.
+
+### 3. Install mountable engine
+
+At this point we have an application working, so it's time to install  godmin as a mountable engine:
+
+```
+bin/rails plugin new admin_dashboard --mountable
+```
+I prefer called `admin_dashboard` to avoid future problems if we will have an `Admin` model(this tends to happen a lot)
+* Note: it's very important to use `_` and not `-`.
+
+Now, we need to add our mountable admin-dashboard to our routes:
+
+```
+Rails.application.routes.draw do
+  resources :articles
+  resources :categories
+  resources :users
+
+  mount AdminDashboard::Engine, at: "admin"
+end
+```
+
+### 4. Add godmin gem to engine
+
+We are going to add godmin as a dependency on `admin-dashboard/admin-dashboard.gemspec`, also you should remove `sqlite3` if it is there.
+
+```
+  ...
+  # remove `TODO:` and change homepage
+  spec.homepage    = "http://condef5.com"
+  spec.summary     = "Summary of Admin::Dashboard."
+  spec.description = "Description of Admin::Dashboard."
+
+  ...
+
+  spec.add_dependency "rails", "~> 6.0.3", ">= 6.0.3.4"
+  spec.add_dependency "godmin", "~> 2.0.0"
+```
+
+Then we just need to install godmin gem:
+
+```
+bundle install
+```
+
+### 5. Install godmin
+
+Now, we install godmin with this command:
+
+```
+admin_dashboard/bin/rails generate godmin:install
+```
+
+Since godmin was installed as an engine, we need import godmin in `admin_dashboard/lib/admin_dashboard.rb`
+
+```
+require "admin_dashboard/engine"
+require "godmin"
+
+module AdminDashboard
+end
+```
+
+### 6. Fix AssetNotPrecompiled
+
+We almost ready, if we run the server:
+```
+rails server
+```
+
+And if we go to the admin, we can see an error with the assets
+
+![asset-error](https://i.imgur.com/UUnDeYV.png)
+
+We can fix this by precompiling the missing assets:
+
+```
+# config/initializers/assets.rb
+Rails.application.config.assets.precompile += %w(admin_dashboard/application.css admin_dashboard/application.js)
+```
+
+We create the javascript missing file:
+
+```
+touch admin_dashboard/app/assets/javascript/admin_dashboard/application.js
+```
+
+And  precompile the assets:
+
+```
+rake assets:precompile
+```
+
+And if we run the server, we can see our admin without errors, but one more thing we need to import the CSS styles form godmin:
+Godmin also has a defined style, so we can incorporate:
+
+```
+# stylesheets/admin_dashboard/application.css
+...
+ *= require godmin
+ *= require_tree .
+ *= require_self
+```
+
+### 7. Add resources to godmin
+
+This the easy part from now to the future
+
+To generate the author crud we just have to run this command:
+
+```
+ admin_dashboard/bin/rails generate godmin:resource author first_name last_name birthday
+```
+
+The same with genres:
+
+```
+ admin_dashboard/bin/rails generate godmin:resource genre name
+```
+
+And finally with books:
+
+```
+admin_dashboard/bin/rails g godmin:resource books  name description  author genre
+```
+
+Note: if you have some errors, you just need to restart the server.
+
+### 8 Fixing some small details
+
+After created some authors and genres, you maybe have realized at the time to create articles, see this selects:
+
+![select-relation-errors](https://i.imgur.com/yjdOTjX.png)
+
+We can fix this, added to the Author and Genre model a `to_s` method
+
+```
+# app/models/author.rb
+class Author < ApplicationRecord
+  def to_s
+    "#{first_name} #{last_name}"
+  end
+end
+```
+
+```
+# app/models/genre.rb
+class Genre < ApplicationRecord
+  def to_s
+    name
+  end
+end
+```
+And the result should be this:
+![fix-selects-relation](https://i.imgur.com/JfbQ6WL.png)
+
+Another improvement we can make is when creating an author, we could have a form view like this:
+
+![datepicker](https://i.imgur.com/VmT70VQ.png)
+
+For this, we just need to require some javascript files in `admin_dashboard/app/assets/javascript/admin_dashboard/application.js`:
+
+```
+//= require jquery
+//= require moment
+//= require godmin
+//= require_tree .
+```
+
+> You can find all steps in this [pull request](https://github.com/condef5/super-admin/pull/1)
+
+## Conclusion
+Yeah definitely this was a little tricky to install, in the previous versions the process was more straightforward, but with rails 6, the complexity has a little complex, but believe me this tool is worth it, it has many interesting things, you can learn how to add filters, scopes pagination and more in its [repository](https://github.com/varvet/godmin) :)
+
+And before I go maybe you are wondering what about the styles: `bootstrap, really?`, don't worry about this, in the next post I'll show you how to integrate godmin with modern CSS frameworks.
+
+
