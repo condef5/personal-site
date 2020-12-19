@@ -1,0 +1,157 @@
+---
+title: How to render react components with rails
+description: Learn how to work with react components in rails views.
+date: 2020-12-19T23:27:47.643Z
+published: true
+tags: Begginner, Ruby, React
+---
+
+There are a lot of questions from the beginners about how is the correct way to works with react and rails,
+specifically how to render the react components in rails views and how to pass the data to the components.
+
+In this post I am going to show you some interesting ways to attack this problem:
+
+I assume you are using [webpacker](https://github.com/rails/webpacker/blob/master/docs/integrations.md#react) with react in your rails project
+
+Imagine we have this `Book` component, which is a charge to render a collection of books:
+
+```js
+# app/javascript/components/Books.js
+
+function Books({ books }) {
+  return (
+    <ul>
+      {books.map((book) => (
+        <li key={book.id}>{book.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+And you have a rails view:
+
+```erb
+# app/views/home/index.html.erb
+
+<% content_for :javascript do %>
+  <%= javascript_packs_with_chunks_tag "book-home" %>
+<% end %>
+
+<%= content_tag(
+  :div,
+  nil,
+  id: "book-list",
+  data: { books: @books }
+)%>
+```
+
+Interesting code right, we need to look more close.
+
+```
+<% content_for :javascript do %>
+  <%= javascript_packs_with_chunks_tag "book-home" %>
+<% end %>
+```
+
+This piece of code, tell to rails that we want to import the `book-home` pack, we don't import the component
+directly.
+
+If you are wondering why uses `javascript_packs_with_chunks_tag` helper and not `javascript_pack_tag`,
+the answers is we are using the webpack 4 or a newest version, with this webpack creates
+html tags for pack and all the dependent chunks, you could react more [here](https://github.com/rails/webpacker#usage)
+
+```
+<%= content_tag(
+  :div,
+  nil,
+  id: "book-list",
+  data: { books: @books }
+)%>
+```
+In this code we are using data attributes to save server data
+
+Then we need to create a `book` pack:
+
+```
+app/javascript/packs/book.js
+
+import React from "react";
+import ReactDOM from "react-dom";
+import Books from "../components/Books";
+
+document.addEventListener("DOMContentLoaded", () => {
+  const $bookNode = document.querySelector("#book-list");
+  const books = JSON.parse($app.dataset.books)
+
+  if ($bookNode) {
+    ReactDOM.render(<Books books={books} />, $bookNode);
+  }
+});
+```
+
+As you note, we parse the books collection, then we get the props from data attributes, after that
+we ensure that div with `book-list` id exist, and finally we render the component and pass the props
+to the Book component.
+
+This way is cool, but in the long term we will repeat this process in all future packs, so we can
+avoid this creating this nice utility:
+
+```
+# app/javascript/lib/mountComponent.js
+
+import React from "react";
+import ReactDOM from "react-dom";
+
+const defaultParser = (dataset) =>
+  Object.entries(dataset).reduce((props, [currentKey, currentValue]) => {
+    try {
+      props[currentKey] = JSON.parse(currentValue);
+    } catch (error) {
+      props[currentKey] = currentValue;
+    }
+    return props;
+  }, {});
+
+const mountComponent = (
+  selector,
+  Component,
+  mapDataToProps = defaultParser
+) => {
+  const mount = (element) => {
+    const props = mapDataToProps(element.dataset);
+    ReactDOM.render(<Component {...props} />, element);
+  };
+
+  document.querySelectorAll(selector).forEach(mount);
+};
+
+export default mountComponent;
+```
+
+So with this, we can update our current `book` pack like this:
+```
+# app/javascript/packs/book.js
+
+import Books from "../components/Books";
+import mountComponent from "../lib/mountComponent";
+
+const $bookNode = document.querySelector("#book-list");
+mountComponent($bookNode, Books)
+```
+
+What happens if your props have a different name to data-attributes, you
+can pass your own customize function to get the props:
+```
+import Books from "../components/Books";
+import mountComponent from "../lib/mountComponent";
+
+const $bookNode = document.querySelector("#book-list");
+mountComponent($bookNode, Books, (data) => ({
+  initialBooks: data.books,
+}))
+```
+
+I know there are others ways to improve this like using third packages or work with json scripts(future post),
+but in my opinion this is really simple approach since you don't have extra work and you know a deep
+how this works.
