@@ -1,0 +1,169 @@
+---
+title: Install Tailwind with Rails
+description: Learn how to setup the most popular css framework with rails.
+date: 2020-12-20T16:16:35.263Z
+published: true
+lang: en
+tags: Rails, Tailwind, Install
+---
+
+Here be dragons
+
+# How to install tailwind with rails
+
+Tailwind is the most popular css framework so far, so in this post I am going to show
+you how to install with the most popular, powerful and majestic web framework, yeah I am
+talking of `Ruby on Rails`.
+
+1. Add the tailwind package
+
+```
+yarn add tailwind
+```
+
+2. Create a stylesheet and pack
+
+First we need to create stylesheet, and import tailwind:
+
+```
+# app/assets/stylesheets/tailwind.scss
+
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+
+// You can add your own custom components/styles here
+
+@import "tailwindcss/utilities";
+```
+
+Then we need to create a tailwind pack and import the stylesheet that we created above:
+
+```
+# app/javascript/packs/tailwind.js
+
+
+import "stylesheets/tailwind.scss";
+```
+
+3. Setup postcss and webpacker
+
+We need to add the tailwind plugin to our postcss.config.js:
+
+```
+# postcss.config.js
+
+module.exports = {
+  plugins: [
+    require('postcss-import'),
+    require("tailwindcss"),
+    require('postcss-flexbugs-fixes'),
+    require('postcss-preset-env')({
+      autoprefixer: {
+    ...
+```
+
+And then add the tailwind stylesheet to webpacker in the `resolved_paths` option:
+
+```
+# config/webpacker.yml
+
+resolved_paths: ['app/assets', 'app/assets/stylesheets']
+```
+
+5. Create a tailwind configuration file
+
+We can do this running this command:
+
+```
+yarn tailwind init
+```
+
+If you want to install all tailwind configuration, you can use the `full` flag:
+
+```
+yarn tailwind init --full
+```
+
+6. Import tailwind to rails
+
+This is the last step, we need to import the pack and stylesheet into rails
+
+```
+# app/views/layouts/application.html.erb
+...
+
+<%= javascript_packs_with_chunks_tag "tailwind" %>
+<%= stylesheet_pack_tag "tailwind" %>
+
+...
+```
+
+And to check everything works fine, we could try to add this html to some view:
+
+```
+<div
+  class="bg-green-400 font-sans h-screen grid place-content-center text-white"
+>
+  <h1 class="text-2xl text-center mb-4">Home#index</h1>
+  <p>Find me in app/views/home/index.html.erb</p>
+</div>
+```
+
+And should see this way:
+
+![final-result](https://i.imgur.com/kWmennw.png "Rails view using tailwind")
+
+## Important notes
+
+1. Install problems
+
+If you have problems installing the tailwind 2.0 version, specifically you see this error:
+
+```
+Error: PostCSS plugin tailwindcss requires PostCSS 8.
+```
+
+You could fix that, remove the tailwind package and installing these packages:
+
+```
+yarn remove tailwind
+yarn add  tailwindcss@npm:@tailwindcss/postcss7-compat @tailwindcss/postcss7-compat postcss@^7 autoprefixer@^9
+```
+
+You can read [more here](https://tailwindcss.com/docs/installation#post-css-7-compatibility-build)
+
+2. Improve the spacing size
+
+If you want to extend the range of sizes of the width, height, margins, paddings and all relating to spacing in tailwind,
+you could add this nice piece of code to the tailwind configuration:
+
+```
+const colors = require("tailwindcss/colors");
+
+const MAX_SPACING_NUMBER = 128;
+const numberToSpacing = (number) => ({ [`${number}`]: `${number * 0.25}rem` });
+const spacingSizes = Array.from({ length: MAX_SPACING_NUMBER }).reduce(
+  (acc, _, index) => ({ ...acc, ...numberToSpacing(index) }),
+  {}
+);
+
+# add spacingSizes object to the spacing property
+module.exports = {
+...
+  theme: {
+    spacing: {
+      px: "1px",
+      ...spacingSizes,
+    },
+...
+```
+
+And with this we are not limited to the max spacing `w-16`, now you can use `w-17` or `h-100`, if you want
+more spacing, you can change the maxSpacingNumber constant.
+
+## Conclusion
+
+This is a really simple way to work tailwind and rails, I really enjoy this framework, the most part
+of the time I feel productive, so don't forget to have a initial design or pick some nice template to increment
+your speed when you build new applications.
