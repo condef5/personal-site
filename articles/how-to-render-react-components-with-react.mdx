@@ -6,14 +6,14 @@ published: true
 tags: Begginner, Ruby, React
 ---
 
-There are a lot of questions from the beginners about how is the correct way to works with react and rails,
-specifically how to render the react components in rails views and how to pass the data to the components.
+Beginners have a lot of questions about how to work with react and rails correctly,
+specifically how to render the react components in rails views and how to pass the data on to the components.
 
-In this post I am going to show you some interesting ways to attack this problem:
+In this post I am going to show you some interesting ways to tackle this problem:
 
 I assume you are using [webpacker](https://github.com/rails/webpacker/blob/master/docs/integrations.md#react) with react in your rails project
 
-Imagine we have this `Book` component, which is a charge to render a collection of books:
+Imagine we have this `Book` component, which is in charge of rendering a collection of books:
 
 ```js
 # app/javascript/components/Books.js
@@ -46,7 +46,7 @@ And you have a rails view:
 )%>
 ```
 
-Interesting code right, we need to look more close.
+Interesting code, right? we need to look more closely.
 
 ```
 <% content_for :javascript do %>
@@ -54,12 +54,12 @@ Interesting code right, we need to look more close.
 <% end %>
 ```
 
-This piece of code, tell to rails that we want to import the `book-home` pack, we don't import the component
+This piece of code tells rails that we want to import the `book-home` pack, we don't import the component
 directly.
 
-If you are wondering why uses `javascript_packs_with_chunks_tag` helper and not `javascript_pack_tag`,
-the answers is we are using the webpack 4 or a newest version, with this webpack creates
-html tags for pack and all the dependent chunks, you could react more [here](https://github.com/rails/webpacker#usage)
+If you are wondering why it uses `javascript_packs_with_chunks_tag` helper and not `javascript_pack_tag`,
+the answer is we are using the webpack 4 or a newer version, this webpack creates
+html tags for pack and all the dependent chunks, you can read more [here](https://github.com/rails/webpacker#usage)
 
 ```
 <%= content_tag(
@@ -90,12 +90,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 ```
 
-As you note, we parse the books collection, then we get the props from data attributes, after that
+As you can see, we parse the books collection, then we get the props from data attributes, after that
 we ensure that div with `book-list` id exist, and finally we render the component and pass the props
-to the Book component.
+to the `Book` component.
 
-This way is cool, but in the long term we will repeat this process in all future packs, so we can
-avoid this creating this nice utility:
+Doing it this way is cool, but in the long term we will repeat this process in all future packs; we can avoid this by creating this nice utility:
 
 ```
 # app/javascript/lib/mountComponent.js
@@ -140,8 +139,8 @@ const $bookNode = document.querySelector("#book-list");
 mountComponent($bookNode, Books)
 ```
 
-What happens if your props have a different name to data-attributes, you
-can pass your own customize function to get the props:
+What happens if your props have a different name to data-attributes? you
+can pass your own customized function to get the props:
 ```
 import Books from "../components/Books";
 import mountComponent from "../lib/mountComponent";
@@ -152,6 +151,7 @@ mountComponent($bookNode, Books, (data) => ({
 }))
 ```
 
+## Conlusion
+
 I know there are others ways to improve this like using third packages or work with json scripts(future post),
-but in my opinion this is really simple approach since you don't have extra work and you know a deep
-how this works.
+but in my opinion this is a really simple approach since you don't have to do extra work and you know how this works in depth.
