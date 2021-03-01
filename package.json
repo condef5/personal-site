@@ -6,7 +6,7 @@
   "scripts": {
     "watch": "watch \"yarn build\" articles slides pages",
     "dev": "concurrently 'yarn watch' 'yarn start'",
-    "build": "contentz build",
+    "build": "contentz build && cp static/cv.pdf public/static",
     "social": "contentz social",
     "write": "contentz write",
     "start": "serve public -p 3000"
